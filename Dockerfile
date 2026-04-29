@@ -1,24 +1,30 @@
-# Build stage
-FROM node:22-alpine AS build
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY . .
-
-ARG VITE_FIREBASE_API_KEY
-ARG VITE_FIREBASE_AUTH_DOMAIN
-ARG VITE_FIREBASE_PROJECT_ID
-ARG VITE_FIREBASE_STORAGE_BUCKET
-ARG VITE_FIREBASE_MESSAGING_SENDER_ID
-ARG VITE_FIREBASE_APP_ID
-
+# Stage 1: Build client
+FROM node:22-alpine AS client-build
+WORKDIR /app/client
+COPY client/package.json client/package-lock.json* ./
+RUN npm install
+COPY client/ .
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Stage 2: Build server
+FROM node:22-alpine AS server-build
+WORKDIR /app/server
+COPY server/package.json server/package-lock.json* ./
+RUN npm install
+COPY server/ .
+RUN npm run build
+
+# Stage 3: Production
+FROM node:22-alpine
+WORKDIR /app
+
+COPY server/package.json server/package-lock.json* ./server/
+RUN cd server && npm install --omit=dev
+
+COPY --from=server-build /app/server/dist ./server/dist
+COPY --from=server-build /app/server/src/db/migrations ./server/dist/db/migrations
+COPY --from=client-build /app/client/dist ./client/dist
+
+EXPOSE 3000
+ENV NODE_ENV=production
+CMD ["node", "server/dist/index.js"]

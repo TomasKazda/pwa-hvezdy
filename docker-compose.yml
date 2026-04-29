@@ -1,0 +1,29 @@
+# docker-compose.yml — lokální vývoj
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hvezdy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/hvezdy
+      SESSION_SECRET: dev-secret
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      BASE_URL: http://localhost:3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
