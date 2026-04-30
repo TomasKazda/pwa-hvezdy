@@ -1,0 +1,8 @@
+.shell {
+  min-height: 100dvh;
+}
+
+.main {
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  min-height: 100dvh;
+}

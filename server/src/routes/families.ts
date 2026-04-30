@@ -10,6 +10,26 @@ function generateFamilyCode(): string {
 }
 
 export default async function familyRoutes(fastify: FastifyInstance) {
+  // Get current user's family (any role in the family)
+  fastify.get("/api/families/mine", {
+    preHandler: [requireAuth],
+    handler: async (request, reply) => {
+      const user = request.user!;
+      if (!user.familyId) {
+        return reply.code(404).send({ error: "Not in a family" });
+      }
+      const [family] = await db
+        .select()
+        .from(families)
+        .where(eq(families.id, user.familyId))
+        .limit(1);
+      if (!family) {
+        return reply.code(404).send({ error: "Family not found" });
+      }
+      return { family };
+    },
+  });
+
   // Create a new family
   fastify.post("/api/families", {
     preHandler: [requireAuth],

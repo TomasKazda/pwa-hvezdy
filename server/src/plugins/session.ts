@@ -22,7 +22,7 @@ export default fp(async (fastify: FastifyInstance) => {
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.COOKIE_SECURE === "true",
       sameSite: "lax",
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

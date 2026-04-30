@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 
 export default async function authRoutes(fastify: FastifyInstance) {
   const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+  const callbackUrl = process.env.OAUTH_CALLBACK_URL || `${baseUrl}/api/auth/callback`;
 
   await fastify.register(oauth2, {
     name: "googleOAuth2",
@@ -17,7 +18,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       },
     },
     startRedirectPath: "/api/auth/google",
-    callbackUri: `${baseUrl}/api/auth/callback`,
+    callbackUri: callbackUrl,
     discovery: {
       issuer: "https://accounts.google.com",
     },
@@ -52,7 +53,8 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     request.session.userId = user.id;
-    reply.redirect("/");
+    await request.session.save();
+    return reply.redirect("/");
   });
 
   fastify.get("/api/auth/me", async (request, reply) => {
@@ -71,7 +73,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post("/api/auth/logout", async (request, reply) => {
-    request.session.destroy();
-    return { ok: true };
+    await new Promise<void>((resolve, reject) => {
+      request.session.destroy((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    return reply.send({ ok: true });
   });
 }

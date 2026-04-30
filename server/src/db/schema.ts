@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, boolean, timestamp, json, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, integer, boolean, timestamp, json, pgEnum } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["parent", "child"]);
 
@@ -15,7 +15,7 @@ export const users = pgTable("users", {
   googleId: varchar("google_id", { length: 255 }).notNull().unique(),
   email: varchar("email", { length: 255 }).notNull(),
   displayName: varchar("display_name", { length: 255 }).notNull(),
-  photoUrl: varchar("photo_url", { length: 500 }),
+  photoUrl: text("photo_url"),
   familyId: integer("family_id").references(() => families.id),
   role: userRoleEnum("role"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

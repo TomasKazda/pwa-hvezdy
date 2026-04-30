@@ -19,7 +19,7 @@ pwa-hvezdy/
 
 | Vrstva | Technologie |
 |--------|-------------|
-| Frontend | React 19, Vite 8, TypeScript |
+| Frontend | React 19, Vite 8, TypeScript, Mantine v9, TanStack Query, react-router v7 |
 | Backend | Fastify 5, TypeScript |
 | ORM | Drizzle ORM + drizzle-kit (migrace) |
 | Databáze | PostgreSQL (poskytuje VPS hosting) |
@@ -109,6 +109,7 @@ Definice: `server/src/db/schema.ts`
 - `POST /api/auth/logout` — odhlášení
 
 ### Families
+- `GET /api/families/mine` — info o rodině aktuálního uživatele
 - `POST /api/families` — založit rodinu (generuje kód)
 - `POST /api/families/join` — připojit se kódem (jako rodič)
 
@@ -152,13 +153,13 @@ Definice: `server/src/db/schema.ts`
 
 ## Další kroky (TODO)
 
-- [ ] Nastavit Google OAuth Console (Authorized redirect URIs: `http://localhost:3000/api/auth/callback` + `https://hvezdy.pslib.cloud/api/auth/callback`)
-- [ ] Vygenerovat první Drizzle migraci (`cd server && npx drizzle-kit generate`)
-- [ ] Implementovat frontend UI (routing, auth context, stránky pro rodiče/děti)
-- [ ] Přidat PWA ikony (`client/public/icons/icon-192.png`, `icon-512.png`)
-- [ ] Nastavit VPS env proměnné
-- [ ] Přidat GitHub Secret `SANDBOX_BUILD_TOKEN`
-- [ ] Otestovat celý deploy flow
+- [x] Nastavit Google OAuth Console (Authorized redirect URIs: `http://localhost:3000/api/auth/callback` + `https://hvezdy.pslib.cloud/api/auth/callback`)
+- [x] Vygenerovat první Drizzle migraci (`cd server && npx drizzle-kit generate`)
+- [x] Implementovat frontend UI (routing, auth context, stránky pro rodiče/děti)
+- [x] Přidat PWA ikony (`client/public/icons/icon-192.png`, `icon-512.png`)
+- [x] Nastavit VPS env proměnné
+- [x] Přidat GitHub Secret `SANDBOX_BUILD_TOKEN`
+- [x] Otestovat celý deploy flow
 
 ## Kontext projektu (pro obnovení práce s LLM)
 
@@ -171,7 +172,11 @@ Definice: `server/src/db/schema.ts`
 - **Balance se nepočítá denormalizovaně** — vždy `SELECT SUM(amount) FROM transactions WHERE child_id = X`
 - **Drizzle migrace** — `drizzle-kit generate` vytvoří SQL soubory v `server/src/db/migrations/`, server je aplikuje při startu (`runMigrations()` v `index.ts`)
 - **PWA bez vite-plugin-pwa** — Vite 8 nepodporuje plugin; řešeno manuálně (`public/manifest.json` + `public/sw.js` + registrace v `main.tsx`)
-- **PostCSS workaround** — Vite 8 v monorepu chybně hledá PostCSS config v parent dirs; opraveno inline `css: { postcss: {} }` ve `vite.config.ts`
+- **PostCSS workaround** — Vite 8 v monorepu chybně hledá PostCSS config v parent dirs; opraveno inline PostCSS konfigurací ve `vite.config.ts` s `postcss-preset-mantine` a `postcss-simple-vars`
+- **Mantine v9 CSS Modules** — UI knihovna sjednocující designový jazyk celé aplikace; primárně mobilní layout (bottom tab bar, drawery, carousely)
+- **TanStack Query jako datová vrstva** — serverová data žijí v query cache (staleTime 30s), ne v custom state; Context+reducer drží jen UI/derivace (role, online stav, aktivní dítě)
+- **Žádné offline mutations** — v offline stavu se zápisové akce deaktivují (<OfflineGate>) a uživatel je informován; žádný IndexedDB, Redux Offline ani optimistic updates
+- **Service worker multi-strategy** — app shell precache (cache-first), API GET = NetworkFirst s 3s timeoutem + fallback do runtime cache, mutace v offline = syntetická 503 `X-Offline:1`
 
 ### Omezení VPS hostingu (Sandbox pslib.cloud)
 
@@ -191,8 +196,17 @@ Definice: `server/src/db/schema.ts`
 | Server: Google OAuth + session plugin | ✅ Hotovo |
 | Server: Všechny API routes (auth, families, children, transactions, wishes, activity-types, admin) | ✅ Hotovo |
 | Client: Vite config s proxy `/api` | ✅ Hotovo |
-| Client: PWA manifest + service worker | ✅ Hotovo |
-| Client: UI stránky (routing, komponenty) | ❌ Neimplementováno |
+| Client: PWA manifest + service worker (multi-strategy) | ✅ Hotovo |
+| Client: Mantine v9 tema + providery (Query, Router, Context) | ✅ Hotovo |
+| Client: Datová vrstva (apiFetch, TanStack Query hooks, mutations) | ✅ Hotovo |
+| Client: Globální stav (Context + reducer, online status) | ✅ Hotovo |
+| Client: Routing + guards (RequireAuth/Role/Admin/Onboarded) | ✅ Hotovo |
+| Client: AppShell layout + BottomTabs (rodič 4 / dítě 3) | ✅ Hotovo |
+| Client: Login + Onboarding (Stepper, PinInput) | ✅ Hotovo |
+| Client: Rodičovské stránky (Children, Wishes, Activities, More) | ✅ Hotovo |
+| Client: Dětské stránky (MyStars, Wishes, More) | ✅ Hotovo |
+| Client: Admin stránky (Users, Families, Invitations) | ✅ Hotovo |
+| Client: Sdílené komponenty (StarBalance, DataState, OfflineGate, EmptyState, OnlineStatusBanner) | ✅ Hotovo |
 | Dockerfile (multi-stage) | ✅ Hotovo |
 | docker-compose (lokální dev) | ✅ Hotovo |
 | GitHub Actions workflow | ✅ Hotovo |
@@ -203,9 +217,23 @@ Definice: `server/src/db/schema.ts`
 ### Soubory klíčové pro pochopení backendu
 
 - `server/src/db/schema.ts` — kompletní datový model (tabulky, relace, enumy)
+- `server/src/db/seeds.ts` — výchozí data pro `activity_types` + případné testovací uživatele/rodiny
+- `server/src/plugins/session.ts` — nastavení session storage v PostgreSQL
 - `server/src/plugins/auth.ts` — middleware `requireAuth`, `requireParent`, `requireAdmin` + user loading z session
 - `server/src/routes/wishes.ts` — nejkomplexnější route (fulfill = atomická operace: kontrola balance → insert transakce → update/delete wish)
 - `server/src/db/index.ts` — pool + drizzle instance, čte `ConnectionStrings__Sandbox` || `DATABASE_URL`
+
+### Soubory klíčové pro pochopení frontendu
+
+- `client/src/main.tsx` — vstupní bod s providery (Mantine, QueryClient, BrowserRouter, AppProvider) a definicí routes
+- `client/src/theme.ts` — Mantine téma (primaryColor grape, defaultRadius md)
+- `client/src/state/AppContext.tsx` — globální stav (user, role, isAdmin, activeChildId, online) + reducer
+- `client/src/api/client.ts` — `apiFetch()` wrapper (OfflineError, HttpError, credentials include)
+- `client/src/api/queries.ts` — TanStack Query hooks pro všechny GET endpointy
+- `client/src/api/mutations.ts` — mutation hooks s invalidacemi a notifikacemi
+- `client/src/layout/AppShellLayout.tsx` — Mantine AppShell s header + BottomTabs (role-dependent)
+- `client/src/routes/guards.tsx` — route guards (RequireAuth, RequireOnboarded, RequireRole, RequireAdmin)
+- `client/public/sw.js` — service worker (app-shell precache, NetworkFirst API, StaleWhileRevalidate assets)
 
 ### Konvence kódu
 
@@ -214,4 +242,8 @@ Definice: `server/src/db/schema.ts`
 - Fastify JSON Schema validace na route úrovni (property `schema` v route options)
 - Drizzle: `eq()`, `and()`, `sql` template tag pro raw SQL
 - Role guards jako `preHandler` hooks na jednotlivých routes
+- Frontend: Mantine CSS Modules pro custom styly (`.module.css`)
+- Frontend: TanStack Query hooks pojmenované `use<Entity>()` / `use<Action><Entity>()`
+- Frontend: Sdílené komponenty v `src/components/`, stránky v `src/pages/`, layout v `src/layout/`
+- Frontend: Offline-aware UI — zápisové akce obaleně `<OfflineGate>`, GET přes `<DataState>` (skeleton/error/offline)
 

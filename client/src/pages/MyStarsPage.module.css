@@ -1,0 +1,20 @@
+.bigBalance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 24px;
+  background: linear-gradient(
+    135deg,
+    var(--mantine-color-grape-0),
+    var(--mantine-color-yellow-0)
+  );
+  border-radius: 24px;
+}
+
+[data-mantine-color-scheme='dark'] .bigBalance {
+  background: linear-gradient(
+    135deg,
+    rgba(112, 72, 232, 0.15),
+    rgba(250, 176, 5, 0.15)
+  );
+}
