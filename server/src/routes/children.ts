@@ -128,9 +128,9 @@ export default async function childrenRoutes(fastify: FastifyInstance) {
     handler: async (request) => {
       const user = request.user!;
 
-      const children = await db.execute<{ id: number; display_name: string; photo_url: string | null; balance: number }>(
+      const children = await db.execute<{ id: number; displayName: string; photoUrl: string | null; balance: number }>(
         /*sql*/`
-        SELECT u.id, u.display_name, u.photo_url,
+        SELECT u.id, u.display_name AS "displayName", u.photo_url AS "photoUrl",
                COALESCE(SUM(t.amount), 0)::int AS balance
         FROM users u
         LEFT JOIN transactions t ON t.child_id = u.id
