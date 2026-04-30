@@ -4,7 +4,6 @@ import {
   Center,
   Container,
   Group,
-  PinInput,
   Stack,
   Tabs,
   Text,
@@ -145,16 +144,14 @@ function ParentStep({ onBack, onDone }: { onBack: () => void; onDone: () => void
 
         <Tabs.Panel value="join" pt="lg">
           <form onSubmit={joinForm.onSubmit((v) => join.mutate(v, { onSuccess: onDone }))}>
-            <Stack gap="md" align="center">
+            <Stack gap="md">
               <Text fz="sm" c="dimmed" ta="center">
                 Zadej 8znakový kód rodiny
               </Text>
-              <PinInput
+              <CodeInput
                 length={8}
-                size="md"
-                type="alphanumeric"
                 value={joinForm.values.code}
-                onChange={(v) => joinForm.setFieldValue('code', v.toUpperCase())}
+                onChange={(v) => joinForm.setFieldValue('code', v)}
               />
               <Button
                 type="submit"
@@ -189,16 +186,14 @@ function ChildStep({ onBack, onDone }: { onBack: () => void; onDone: () => void 
         Zpět
       </Button>
       <form onSubmit={form.onSubmit((v) => register.mutate(v, { onSuccess: onDone }))}>
-        <Stack gap="md" align="center">
+        <Stack gap="md">
           <Text fz="sm" c="dimmed" ta="center">
             Zadej 12znakový klíč od rodičů
           </Text>
-          <PinInput
+          <CodeInput
             length={12}
-            size="sm"
-            type="alphanumeric"
             value={form.values.code}
-            onChange={(v) => form.setFieldValue('code', v.toUpperCase())}
+            onChange={(v) => form.setFieldValue('code', v)}
           />
           <Button
             type="submit"
@@ -212,5 +207,46 @@ function ChildStep({ onBack, onDone }: { onBack: () => void; onDone: () => void 
         </Stack>
       </form>
     </OfflineGate>
+  );
+}
+
+function CodeInput({
+  length,
+  value,
+  onChange,
+}: {
+  length: number;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <TextInput
+      value={value}
+      onChange={(e) => {
+        const next = e.currentTarget.value
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, '')
+          .slice(0, length);
+        onChange(next);
+      }}
+      placeholder={'•'.repeat(length)}
+      maxLength={length}
+      autoComplete="one-time-code"
+      inputMode="text"
+      autoCapitalize="characters"
+      autoCorrect="off"
+      spellCheck={false}
+      size="lg"
+      styles={{
+        input: {
+          textAlign: 'center',
+          fontFamily:
+            'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+          fontWeight: 600,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase',
+        },
+      }}
+    />
   );
 }
