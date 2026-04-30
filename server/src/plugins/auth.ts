@@ -33,22 +33,21 @@ export default fp(async (fastify: FastifyInstance) => {
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   if (!request.user) {
-    reply.code(401).send({ error: "Unauthorized" });
+    return reply.code(401).send({ error: "Unauthorized" });
   }
 }
 
 export async function requireParent(request: FastifyRequest, reply: FastifyReply) {
   if (!request.user) {
-    reply.code(401).send({ error: "Unauthorized" });
-    return;
+    return reply.code(401).send({ error: "Unauthorized" });
   }
   if (request.user.role !== "parent") {
-    reply.code(403).send({ error: "Forbidden: parent role required" });
+    return reply.code(403).send({ error: "Forbidden: parent role required" });
   }
 }
 
 export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (!request.isAdmin) {
-    reply.code(403).send({ error: "Forbidden: admin access required" });
+    return reply.code(403).send({ error: "Forbidden: admin access required" });
   }
 }
