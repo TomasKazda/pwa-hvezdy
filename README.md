@@ -196,9 +196,9 @@ Definice: `server/src/db/schema.ts`
 | Dockerfile (multi-stage) | ✅ Hotovo |
 | docker-compose (lokální dev) | ✅ Hotovo |
 | GitHub Actions workflow | ✅ Hotovo |
-| Drizzle migrace (vygenerované SQL) | ❌ Nutno spustit `drizzle-kit generate` |
-| Google OAuth nastavení v Console | ❌ Nutno udělat ručně |
-| VPS env proměnné | ❌ Nutno nastavit |
+| Drizzle migrace (vygenerované SQL) | ✅ Hotovo |
+| Google OAuth nastavení v Console | ✅ Hotovo |
+| VPS env proměnné | ✅ Hotovo |
 
 ### Soubory klíčové pro pochopení backendu
 
