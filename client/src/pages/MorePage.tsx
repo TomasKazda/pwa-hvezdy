@@ -178,7 +178,7 @@ function ChildInvitationsCard() {
           {(invitations) => (
             <Stack gap="xs">
               {invitations.map((inv) => {
-                const used = !!inv.usedAt;
+                const used = inv.usageCount > 0;
                 return (
                   <Group
                     key={inv.id}

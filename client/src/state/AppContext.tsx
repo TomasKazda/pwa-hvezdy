@@ -44,13 +44,25 @@ function readActiveChild(): number | null {
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case 'SET_USER':
+    case 'SET_USER': {
+      const nextUser = action.payload;
+
+      try {
+        if (!nextUser) {
+          localStorage.removeItem(ACTIVE_CHILD_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
+
       return {
         ...state,
-        user: action.payload,
-        role: action.payload?.role ?? null,
-        isAdmin: action.payload?.isAdmin ?? false,
+        user: nextUser,
+        role: nextUser?.role ?? null,
+        isAdmin: nextUser?.isAdmin ?? false,
+        activeChildId: nextUser ? state.activeChildId : null,
       };
+    }
     case 'SELECT_CHILD':
       try {
         if (action.payload === null) localStorage.removeItem(ACTIVE_CHILD_KEY);
@@ -91,7 +103,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch,
     isLoading: meQuery.isLoading,
     isAuthenticated: !!state.user,
-    isOnboarded: !!state.user?.familyId && !!state.user?.role,
+    isOnboarded:
+      !!state.user && state.user.role !== null && state.user.familyId !== null,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

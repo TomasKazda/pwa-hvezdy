@@ -72,20 +72,19 @@ export default async function transactionRoutes(fastify: FastifyInstance) {
           childId: { type: "number" },
           amount: { type: "number" },
           description: { type: "string", minLength: 1, maxLength: 255 },
-          categoryId: { type: "number" },
+          wishId: { type: ["number", "null"] },
         },
       },
     },
     handler: async (request, reply) => {
       const user = request.user!;
-      const { childId, amount, description, categoryId } = request.body as {
+      const { childId, amount, description, wishId } = request.body as {
         childId: number;
         amount: number;
         description: string;
-        categoryId?: number;
+        wishId?: number | null;
       };
 
-      // Verify child is in same family
       const [child] = await db
         .select()
         .from(users)
@@ -109,12 +108,37 @@ export default async function transactionRoutes(fastify: FastifyInstance) {
           childId,
           amount,
           description,
-          categoryId: categoryId ?? null,
+          wishId: wishId ?? null,
           authorId: user.id,
         })
         .returning();
 
       return { transaction: tx };
+    },
+  });
+
+  // Delete a transaction (parent only, e.g. to fix a mistaken entry)
+  fastify.delete("/api/transactions/:id", {
+    preHandler: [requireParent],
+    handler: async (request, reply) => {
+      const user = request.user!;
+      const { id } = request.params as { id: string };
+
+      const [deleted] = await db
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.id, parseInt(id)),
+            eq(transactions.familyId, user.familyId!)
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        return reply.code(404).send({ error: "Transaction not found" });
+      }
+
+      return { ok: true };
     },
   });
 }

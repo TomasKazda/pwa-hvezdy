@@ -195,7 +195,7 @@ function InvitationsTab() {
                   <Text ff="monospace" fz="sm">
                     {inv.code}
                   </Text>
-                  {inv.usedAt && (
+                  {inv.usageCount > 0 && (
                     <Badge size="xs" color="gray">
                       použito
                     </Badge>

@@ -8,6 +8,7 @@ import {
   Group,
   Modal,
   NumberInput,
+  PasswordInput,
   Progress,
   Select,
   SimpleGrid,
@@ -20,6 +21,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
 import {
+  IconBolt,
   IconCheck,
   IconGift,
   IconPencil,
@@ -36,6 +38,7 @@ import {
   useCreateWish,
   useDeleteWish,
   useFulfillWish,
+  useSelfFulfillWish,
   useUpdateWish,
 } from '../api/mutations';
 import { useApp, useOnlineStatus } from '../state/AppContext';
@@ -176,6 +179,16 @@ function WishCard({
               opakované
             </Badge>
           )}
+          {wish.isSelfFulfillment && (
+            <Badge
+              size="xs"
+              color="grape"
+              variant="filled"
+              leftSection={<IconBolt size={10} />}
+            >
+              sám splníš
+            </Badge>
+          )}
         </Group>
         <Text fw={600} fz="sm" lineClamp={3}>
           {wish.title}
@@ -212,11 +225,24 @@ function CreateWishForm({
       title: '',
       starCost: 10 as number | undefined,
       isPersistent: false,
+      isSelfFulfillment: false,
+      multiplier: 1,
+      webhookUrl: '',
+      webhookSecret: '',
+      webhookParamName: '',
     },
     validate: {
       title: (v) => (v.trim() ? null : 'Vyplň název'),
+      webhookUrl: (v, values) =>
+        values.isSelfFulfillment && !/^https?:\/\//i.test(v.trim())
+          ? 'Zadej platnou http(s) URL'
+          : null,
+      webhookParamName: (v, values) =>
+        values.isSelfFulfillment && !v.trim() ? 'Zadej název parametru' : null,
     },
   });
+
+  const self = isParent && form.values.isSelfFulfillment;
 
   return (
     <form
@@ -225,7 +251,17 @@ function CreateWishForm({
           {
             title: values.title.trim(),
             starCost: isParent ? values.starCost : undefined,
-            isPersistent: isParent ? values.isPersistent : undefined,
+            isPersistent: isParent
+              ? self
+                ? true
+                : values.isPersistent
+              : undefined,
+            isSelfFulfillment: self,
+            multiplier: self ? values.multiplier : undefined,
+            webhookUrl: self ? values.webhookUrl.trim() : undefined,
+            webhookSecret:
+              self && values.webhookSecret ? values.webhookSecret : undefined,
+            webhookParamName: self ? values.webhookParamName.trim() : undefined,
           },
           { onSuccess: () => onDone() },
         );
@@ -240,14 +276,45 @@ function CreateWishForm({
         {isParent && (
           <>
             <NumberInput
-              label="Cena (hvězdy)"
+              label={self ? 'Výchozí cena (hvězdy)' : 'Cena (hvězdy)'}
               min={1}
               {...form.getInputProps('starCost')}
             />
             <Switch
               label="Opakované přání (po splnění zůstává v seznamu)"
+              disabled={form.values.isSelfFulfillment}
               {...form.getInputProps('isPersistent', { type: 'checkbox' })}
             />
+            <Switch
+              label="Speciální přání – dítě si ho splní samo (webhook)"
+              {...form.getInputProps('isSelfFulfillment', { type: 'checkbox' })}
+            />
+            {form.values.isSelfFulfillment && (
+              <Card withBorder padding="sm" radius="md" bg="grape.0">
+                <Stack gap="sm">
+                  <NumberInput
+                    label="Koeficient (cena × koeficient = parametr)"
+                    min={1}
+                    {...form.getInputProps('multiplier')}
+                  />
+                  <TextInput
+                    label="Webhook URL"
+                    placeholder="https://ha.kazda.org/api/webhook/..."
+                    {...form.getInputProps('webhookUrl')}
+                  />
+                  <TextInput
+                    label="Název parametru v těle požadavku"
+                    placeholder="minutes"
+                    {...form.getInputProps('webhookParamName')}
+                  />
+                  <PasswordInput
+                    label="Secret (volitelné)"
+                    placeholder="THRK2026"
+                    {...form.getInputProps('webhookSecret')}
+                  />
+                </Stack>
+              </Card>
+            )}
           </>
         )}
         <Button type="submit" loading={create.isPending} size="md">
@@ -282,10 +349,24 @@ function WishDetail({
       title: wish.title,
       starCost: wish.starCost ?? undefined,
       isPersistent: wish.isPersistent,
+      isSelfFulfillment: wish.isSelfFulfillment,
+      multiplier: wish.multiplier ?? 1,
+      webhookUrl: wish.webhookUrl ?? '',
+      webhookSecret: '',
+      webhookParamName: wish.webhookParamName ?? '',
+    },
+    validate: {
+      webhookUrl: (v, values) =>
+        values.isSelfFulfillment && !/^https?:\/\//i.test(v.trim())
+          ? 'Zadej platnou http(s) URL'
+          : null,
+      webhookParamName: (v, values) =>
+        values.isSelfFulfillment && !v.trim() ? 'Zadej název parametru' : null,
     },
   });
 
   if (editMode && isParent) {
+    const self = form.values.isSelfFulfillment;
     return (
       <OfflineGate>
         <form
@@ -295,7 +376,12 @@ function WishDetail({
                 id: wish.id,
                 title: values.title.trim(),
                 starCost: values.starCost,
-                isPersistent: values.isPersistent,
+                isPersistent: self ? true : values.isPersistent,
+                isSelfFulfillment: self,
+                multiplier: self ? values.multiplier : undefined,
+                webhookUrl: self ? values.webhookUrl.trim() : undefined,
+                webhookParamName: self ? values.webhookParamName.trim() : undefined,
+                webhookSecret: values.webhookSecret || undefined,
               },
               { onSuccess: () => onClose() },
             );
@@ -304,14 +390,47 @@ function WishDetail({
           <Stack gap="md">
             <TextInput label="Název" {...form.getInputProps('title')} />
             <NumberInput
-              label="Cena (hvězdy)"
+              label={self ? 'Výchozí cena (hvězdy)' : 'Cena (hvězdy)'}
               min={1}
               {...form.getInputProps('starCost')}
             />
             <Switch
               label="Opakované přání"
+              disabled={self}
               {...form.getInputProps('isPersistent', { type: 'checkbox' })}
             />
+            <Switch
+              label="Speciální přání – dítě si ho splní samo (webhook)"
+              {...form.getInputProps('isSelfFulfillment', { type: 'checkbox' })}
+            />
+            {self && (
+              <Card withBorder padding="sm" radius="md" bg="grape.0">
+                <Stack gap="sm">
+                  <NumberInput
+                    label="Koeficient (cena × koeficient = parametr)"
+                    min={1}
+                    {...form.getInputProps('multiplier')}
+                  />
+                  <TextInput
+                    label="Webhook URL"
+                    placeholder="https://ha.kazda.org/api/webhook/..."
+                    {...form.getInputProps('webhookUrl')}
+                  />
+                  <TextInput
+                    label="Název parametru v těle požadavku"
+                    placeholder="minutes"
+                    {...form.getInputProps('webhookParamName')}
+                  />
+                  <PasswordInput
+                    label="Secret"
+                    placeholder={
+                      wish.hasWebhookSecret ? '•••• (ponech prázdné = beze změny)' : 'THRK2026'
+                    }
+                    {...form.getInputProps('webhookSecret')}
+                  />
+                </Stack>
+              </Card>
+            )}
             <Group grow>
               <Button variant="default" onClick={() => setEditMode(false)}>
                 Zrušit
@@ -337,43 +456,68 @@ function WishDetail({
               opakované
             </Badge>
           )}
+          {wish.isSelfFulfillment && (
+            <Badge color="grape" variant="filled" leftSection={<IconBolt size={12} />}>
+              sám splníš
+            </Badge>
+          )}
         </Group>
       </Stack>
 
       {isParent ? (
         <OfflineGate>
-          {wish.starCost !== null && children.length > 0 && (
+          {wish.isSelfFulfillment ? (
             <Card withBorder padding="md" radius="md">
-              <Stack gap="sm">
+              <Stack gap={4}>
                 <Text fz="sm" fw={500}>
-                  Splnit pro:
+                  Speciální přání – splní si ho dítě samo
                 </Text>
-                <Select
-                  data={children.map((c) => ({
-                    value: String(c.id),
-                    label: `${c.displayName} (${c.balance}⭐)`,
-                  }))}
-                  value={fulfillChildId}
-                  onChange={setFulfillChildId}
-                  allowDeselect={false}
-                />
-                <Button
-                  color="teal"
-                  leftSection={<IconCheck size={16} />}
-                  loading={fulfill.isPending}
-                  disabled={!fulfillChildId}
-                  onClick={() => {
-                    if (!fulfillChildId) return;
-                    fulfill.mutate(
-                      { id: wish.id, childId: Number(fulfillChildId) },
-                      { onSuccess: () => onClose() },
-                    );
-                  }}
-                >
-                  Splnit přání
-                </Button>
+                <Text fz="xs" c="dimmed">
+                  Koeficient ×{wish.multiplier} · parametr „{wish.webhookParamName}“
+                </Text>
+                <Text fz="xs" c="dimmed">
+                  Webhook: {wish.webhookUrl}
+                </Text>
+                <Text fz="xs" c={wish.hasWebhookSecret ? 'teal' : 'red'}>
+                  Secret {wish.hasWebhookSecret ? 'nastaven' : 'není nastaven'}
+                </Text>
               </Stack>
             </Card>
+          ) : (
+            wish.starCost !== null &&
+            children.length > 0 && (
+              <Card withBorder padding="md" radius="md">
+                <Stack gap="sm">
+                  <Text fz="sm" fw={500}>
+                    Splnit pro:
+                  </Text>
+                  <Select
+                    data={children.map((c) => ({
+                      value: String(c.id),
+                      label: `${c.displayName} (${c.balance}⭐)`,
+                    }))}
+                    value={fulfillChildId}
+                    onChange={setFulfillChildId}
+                    allowDeselect={false}
+                  />
+                  <Button
+                    color="teal"
+                    leftSection={<IconCheck size={16} />}
+                    loading={fulfill.isPending}
+                    disabled={!fulfillChildId}
+                    onClick={() => {
+                      if (!fulfillChildId) return;
+                      fulfill.mutate(
+                        { id: wish.id, childId: Number(fulfillChildId) },
+                        { onSuccess: () => onClose() },
+                      );
+                    }}
+                  >
+                    Splnit přání
+                  </Button>
+                </Stack>
+              </Card>
+            )
           )}
           <Group grow>
             <Button
@@ -394,11 +538,64 @@ function WishDetail({
             </Button>
           </Group>
         </OfflineGate>
+      ) : wish.isSelfFulfillment ? (
+        <ChildSelfFulfill wish={wish} onClose={onClose} />
       ) : (
         <Text c="dimmed" fz="sm">
           O splnění rozhodují rodiče.
         </Text>
       )}
     </Stack>
+  );
+}
+
+function ChildSelfFulfill({
+  wish,
+  onClose,
+}: {
+  wish: WishWithReachable;
+  onClose: () => void;
+}) {
+  const selfFulfill = useSelfFulfillWish();
+  const [price, setPrice] = useState<number>(wish.starCost ?? 1);
+  const parameter = (price || 0) * (wish.multiplier ?? 1);
+
+  return (
+    <OfflineGate>
+      <Card withBorder padding="md" radius="md" bg="grape.0">
+        <Stack gap="sm">
+          <Text fz="sm" fw={500}>
+            Kolik hvězd chceš proměnit?
+          </Text>
+          <NumberInput
+            min={1}
+            value={price}
+            onChange={(v) => setPrice(typeof v === 'number' ? v : 1)}
+          />
+          <Group justify="space-between">
+            <Text fz="sm" c="dimmed">
+              Získáš
+            </Text>
+            <Badge size="lg" color="grape" leftSection={<IconBolt size={12} />}>
+              {parameter} {wish.webhookParamName ?? ''}
+            </Badge>
+          </Group>
+          <Button
+            color="teal"
+            leftSection={<IconCheck size={16} />}
+            loading={selfFulfill.isPending}
+            disabled={!price || price < 1}
+            onClick={() =>
+              selfFulfill.mutate(
+                { id: wish.id, starCost: price },
+                { onSuccess: () => onClose() },
+              )
+            }
+          >
+            Splnit ({price} ⭐)
+          </Button>
+        </Stack>
+      </Card>
+    </OfflineGate>
   );
 }

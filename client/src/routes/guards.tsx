@@ -7,18 +7,23 @@ import type { ReactNode } from 'react';
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useApp();
   const location = useLocation();
+
   if (isLoading) return <FullScreenLoader />;
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
+
   return <>{children}</>;
 }
 
 export function RequireOnboarded({ children }: { children: ReactNode }) {
   const { isAuthenticated, isOnboarded, isLoading } = useApp();
+  const location = useLocation();
+
   if (isLoading) return <FullScreenLoader />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />;
   if (!isOnboarded) return <Navigate to="/onboarding" replace />;
+
   return <>{children}</>;
 }
 
@@ -29,14 +34,22 @@ export function RequireRole({
   role: UserRole;
   children: ReactNode;
 }) {
-  const { state } = useApp();
+  const { state, isLoading } = useApp();
+
+  if (isLoading) return <FullScreenLoader />;
+  if (!state.user) return <Navigate to="/login" replace />;
   if (state.role !== role) return <Navigate to="/app" replace />;
+
   return <>{children}</>;
 }
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
-  const { state } = useApp();
+  const { state, isLoading } = useApp();
+
+  if (isLoading) return <FullScreenLoader />;
+  if (!state.user) return <Navigate to="/login" replace />;
   if (!state.isAdmin) return <Navigate to="/app" replace />;
+
   return <>{children}</>;
 }
 

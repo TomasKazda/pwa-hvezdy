@@ -99,7 +99,7 @@ export function useFulfilledWishes(childId: number) {
   return useQuery({
     queryKey: qk.fulfilledWishes(childId),
     queryFn: () =>
-      apiFetch<{ wishes: Wish[] }>(`/api/wishes/fulfilled?childId=${childId}`).then(
+      apiFetch<{ wishes: Transaction[] }>(`/api/wishes/fulfilled?childId=${childId}`).then(
         (r) => r.wishes,
       ),
     staleTime: 60_000,

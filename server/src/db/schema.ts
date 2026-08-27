@@ -26,8 +26,7 @@ export const childInvitations = pgTable("child_invitations", {
   code: varchar("code", { length: 12 }).notNull().unique(),
   familyId: integer("family_id").notNull().references(() => families.id),
   createdBy: integer("created_by").notNull().references(() => users.id),
-  usedBy: integer("used_by").references(() => users.id),
-  usedAt: timestamp("used_at"),
+  usageCount: integer("usage_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -35,17 +34,9 @@ export const activityTypes = pgTable("activity_types", {
   id: serial("id").primaryKey(),
   familyId: integer("family_id").notNull().references(() => families.id),
   name: varchar("name", { length: 100 }).notNull(),
-  defaultStars: integer("default_stars").notNull().default(1),
-});
-
-export const transactions = pgTable("transactions", {
-  id: serial("id").primaryKey(),
-  familyId: integer("family_id").notNull().references(() => families.id),
-  childId: integer("child_id").notNull().references(() => users.id),
-  amount: integer("amount").notNull(),
-  description: varchar("description", { length: 255 }).notNull(),
-  categoryId: integer("category_id").references(() => activityTypes.id),
-  authorId: integer("author_id").notNull().references(() => users.id),
+  value: integer("value").notNull().default(1),
+  direction: varchar("direction", { length: 10 }).notNull().default("plus"),
+  createdBy: integer("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -55,9 +46,23 @@ export const wishes = pgTable("wishes", {
   title: varchar("title", { length: 255 }).notNull(),
   starCost: integer("star_cost"),
   isPersistent: boolean("is_persistent").notNull().default(false),
+  isSelfFulfillment: boolean("is_self_fulfillment").notNull().default(false),
+  multiplier: integer("multiplier").notNull().default(1),
+  webhookUrl: text("webhook_url"),
+  webhookSecret: varchar("webhook_secret", { length: 255 }),
+  webhookParamName: varchar("webhook_param_name", { length: 100 }),
   createdBy: integer("created_by").notNull().references(() => users.id),
-  fulfilledAt: timestamp("fulfilled_at"),
-  fulfilledForChildId: integer("fulfilled_for_child_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  childId: integer("child_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  wishId: integer("wish_id"),
+  authorId: integer("author_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

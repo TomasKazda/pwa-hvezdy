@@ -15,6 +15,34 @@
       "when": 1777533800000,
       "tag": "0001_photo_url_text",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787746762538,
+      "tag": "0002_overjoyed_wallow",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787827011092,
+      "tag": "0003_colossal_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787828139190,
+      "tag": "0004_colorful_amphibian",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787835723873,
+      "tag": "0005_watery_triton",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/hvezdy
       SESSION_SECRET: ${SESSION_SECRET:-dev-secret-that-is-at-least-32-chars-long}

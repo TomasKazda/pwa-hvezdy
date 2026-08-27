@@ -7,6 +7,7 @@ export interface User {
   photoUrl: string | null;
   familyId: number | null;
   role: UserRole | null;
+  createdAt?: string;
 }
 
 export interface MeResponse {
@@ -23,6 +24,8 @@ export interface Family {
   id: number;
   name: string;
   code: string;
+  createdBy?: number | null;
+  createdAt?: string;
 }
 
 export interface Child {
@@ -35,36 +38,46 @@ export interface Child {
 
 export interface Transaction {
   id: number;
+  familyId: number;
   childId: number;
   amount: number;
   description: string;
-  categoryId: number | null;
+  wishId: number | null;
   authorId: number;
-  authorName?: string;
   createdAt: string;
 }
 
 export interface Wish {
   id: number;
+  familyId: number;
   title: string;
   starCost: number | null;
   isPersistent: boolean;
+  isSelfFulfillment: boolean;
+  multiplier: number;
+  webhookUrl: string | null;
+  webhookParamName: string | null;
+  hasWebhookSecret?: boolean;
   createdBy: number;
-  fulfilledAt: string | null;
-  fulfilledForChildId: number | null;
   createdAt: string;
+  reachable?: boolean | null;
 }
 
 export interface ActivityType {
   id: number;
+  familyId: number;
   name: string;
-  defaultStars: number;
+  value: number;
+  direction: 'plus' | 'minus';
+  createdBy: number;
+  createdAt: string;
 }
 
 export interface ChildInvitation {
   id: number;
   code: string;
-  usedBy: number | null;
-  usedAt: string | null;
+  familyId: number;
+  createdBy: number;
+  usageCount: number;
   createdAt: string;
 }

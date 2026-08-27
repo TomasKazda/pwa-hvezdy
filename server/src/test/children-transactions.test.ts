@@ -21,7 +21,7 @@ describe("Children API (parent)", () => {
     expect(body.children).toBeInstanceOf(Array);
     expect(body.children.length).toBeGreaterThan(0);
     expect(body.children[0]).toHaveProperty("balance");
-    expect(body.children[0]).toHaveProperty("display_name");
+    expect(body.children[0]).toHaveProperty("displayName");
   });
 
   it("POST /api/child-invitations creates a new invitation", async () => {

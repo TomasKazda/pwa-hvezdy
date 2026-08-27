@@ -4,7 +4,6 @@ import { families, users, activityTypes, wishes, transactions } from "./schema.j
 async function seed() {
   console.log("Seeding database...");
 
-  // 1. Create a demo family
   const [family] = await db
     .insert(families)
     .values({ name: "Novákovi", code: "DEMO1234", createdBy: null })
@@ -17,7 +16,6 @@ async function seed() {
     return;
   }
 
-  // 2. Create demo users
   const [parent] = await db
     .insert(users)
     .values({
@@ -54,48 +52,42 @@ async function seed() {
     })
     .returning();
 
-  // Update family createdBy
-  await db.execute(
-    /*sql*/ `UPDATE families SET created_by = ${parent.id} WHERE id = ${family.id}`
-  );
+  await db.execute(`UPDATE families SET created_by = ${parent.id} WHERE id = ${family.id}`);
 
-  // 3. Create activity types (categories)
-  const [catUklid] = await db
-    .insert(activityTypes)
-    .values({ familyId: family.id, name: "Úklid", defaultStars: 3 })
-    .returning();
+  const activityRecords = [
+    { name: "Úklid", value: 3, direction: "plus" },
+    { name: "Škola", value: 5, direction: "plus" },
+    { name: "Domácí práce", value: 2, direction: "plus" },
+    { name: "Sport", value: 4, direction: "plus" },
+    { name: "Chování", value: 1, direction: "plus" },
+    { name: "Ztráta", value: 2, direction: "minus" },
+  ] as const;
 
-  const [catSkola] = await db
-    .insert(activityTypes)
-    .values({ familyId: family.id, name: "Škola", defaultStars: 5 })
-    .returning();
+  const insertedActivityTypes = [] as Array<{ id: number; name: string; value: number; direction: string }>;
+  for (const item of activityRecords) {
+    const [entry] = await db
+      .insert(activityTypes)
+      .values({
+        familyId: family.id,
+        name: item.name,
+        value: item.value,
+        direction: item.direction,
+        createdBy: parent.id,
+      })
+      .returning();
+    insertedActivityTypes.push(entry);
+  }
 
-  const [catDomaci] = await db
-    .insert(activityTypes)
-    .values({ familyId: family.id, name: "Domácí práce", defaultStars: 2 })
-    .returning();
-
-  const [catSport] = await db
-    .insert(activityTypes)
-    .values({ familyId: family.id, name: "Sport", defaultStars: 4 })
-    .returning();
-
-  const [catChovani] = await db
-    .insert(activityTypes)
-    .values({ familyId: family.id, name: "Chování", defaultStars: 1 })
-    .returning();
-
-  // 4. Create transactions (star history for child1)
   const txData = [
-    { childId: child1.id, amount: 3, description: "Vysál obývák", categoryId: catUklid.id },
-    { childId: child1.id, amount: 1, description: "Napsané úkoly", categoryId: catSkola.id },
-    { childId: child1.id, amount: 2, description: "Umyl nádobí", categoryId: catDomaci.id },
-    { childId: child1.id, amount: -2, description: "Neuklizený pokoj", categoryId: catUklid.id },
-    { childId: child1.id, amount: 4, description: "Fotbalový trénink", categoryId: catSport.id },
-    { childId: child1.id, amount: 1, description: "Pomohl sourozenci", categoryId: catChovani.id },
-    { childId: child2.id, amount: 5, description: "Úlohy v Koumákovi", categoryId: catSkola.id },
-    { childId: child2.id, amount: 3, description: "Uklidila koupelnu", categoryId: catUklid.id },
-    { childId: child2.id, amount: 4, description: "Plavecký trénink", categoryId: catSport.id },
+    { childId: child1.id, amount: 3, description: "Vysál obývák" },
+    { childId: child1.id, amount: 1, description: "Napsané úkoly" },
+    { childId: child1.id, amount: 2, description: "Umyl nádobí" },
+    { childId: child1.id, amount: -2, description: "Neuklizený pokoj" },
+    { childId: child1.id, amount: 4, description: "Fotbalový trénink" },
+    { childId: child1.id, amount: 1, description: "Pomohl sourozenci" },
+    { childId: child2.id, amount: 5, description: "Úlohy v Koumákovi" },
+    { childId: child2.id, amount: 3, description: "Uklidila koupelnu" },
+    { childId: child2.id, amount: 4, description: "Plavecký trénink" },
   ];
 
   for (const tx of txData) {
@@ -104,18 +96,19 @@ async function seed() {
       childId: tx.childId,
       amount: tx.amount,
       description: tx.description,
-      categoryId: tx.categoryId,
+      wishId: null,
       authorId: parent.id,
     });
   }
 
-  // 5. Create wishes
   await db.insert(wishes).values([
     {
       familyId: family.id,
       title: "Nová hra na PlayStation",
       starCost: 50,
       isPersistent: false,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: child1.id,
     },
     {
@@ -123,6 +116,8 @@ async function seed() {
       title: "Zmrzlina",
       starCost: 5,
       isPersistent: true,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: parent.id,
     },
     {
@@ -130,6 +125,8 @@ async function seed() {
       title: "Kino s kamarády",
       starCost: 20,
       isPersistent: false,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: child2.id,
     },
     {
@@ -137,6 +134,8 @@ async function seed() {
       title: "Nový batoh",
       starCost: 30,
       isPersistent: false,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: child1.id,
     },
     {
@@ -144,13 +143,17 @@ async function seed() {
       title: "Ponocování do 22:00",
       starCost: 10,
       isPersistent: true,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: parent.id,
     },
     {
       familyId: family.id,
       title: "Vlastní sluchátka",
-      starCost: null, // not priced yet
+      starCost: null,
       isPersistent: false,
+      isSelfFulfillment: false,
+      multiplier: 1,
       createdBy: child2.id,
     },
   ]);
@@ -158,10 +161,10 @@ async function seed() {
   console.log("Seed complete!");
   console.log(`  Family: ${family.name} (code: ${family.code})`);
   console.log(`  Parent: ${parent.displayName} (${parent.email})`);
-  console.log(`  Child 1: ${child1.displayName} — balance: 13 ⭐`);
-  console.log(`  Child 2: ${child2.displayName} — balance: 12 ⭐`);
-  console.log(`  Activity types: 5`);
-  console.log(`  Wishes: 6 (1 unpriced)`);
+  console.log(`  Child 1: ${child1.displayName}`);
+  console.log(`  Child 2: ${child2.displayName}`);
+  console.log(`  Activity types: ${insertedActivityTypes.length}`);
+  console.log("  Wishes: 6");
 
   await pool.end();
 }

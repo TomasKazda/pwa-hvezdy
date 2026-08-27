@@ -23,20 +23,31 @@ export default async function activityTypeRoutes(fastify: FastifyInstance) {
     schema: {
       body: {
         type: "object",
-        required: ["name", "defaultStars"],
+        required: ["name", "value"],
         properties: {
           name: { type: "string", minLength: 1, maxLength: 100 },
-          defaultStars: { type: "number", minimum: 1 },
+          value: { type: "number" },
+          direction: { type: "string", enum: ["plus", "minus"] },
         },
       },
     },
     handler: async (request) => {
       const user = request.user!;
-      const { name, defaultStars } = request.body as { name: string; defaultStars: number };
+      const { name, value, direction } = request.body as {
+        name: string;
+        value: number;
+        direction?: "plus" | "minus";
+      };
 
       const [type] = await db
         .insert(activityTypes)
-        .values({ familyId: user.familyId!, name, defaultStars })
+        .values({
+          familyId: user.familyId!,
+          name,
+          value,
+          direction: direction ?? "plus",
+          createdBy: user.id,
+        })
         .returning();
 
       return { activityType: type };
@@ -50,14 +61,19 @@ export default async function activityTypeRoutes(fastify: FastifyInstance) {
         type: "object",
         properties: {
           name: { type: "string", minLength: 1, maxLength: 100 },
-          defaultStars: { type: "number", minimum: 1 },
+          value: { type: "number" },
+          direction: { type: "string", enum: ["plus", "minus"] },
         },
       },
     },
     handler: async (request, reply) => {
       const user = request.user!;
       const { id } = request.params as { id: string };
-      const body = request.body as { name?: string; defaultStars?: number };
+      const body = request.body as {
+        name?: string;
+        value?: number;
+        direction?: "plus" | "minus";
+      };
 
       const [updated] = await db
         .update(activityTypes)

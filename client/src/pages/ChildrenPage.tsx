@@ -24,6 +24,7 @@ import {
   IconMinus,
   IconPlus,
   IconStarFilled,
+  IconTrash,
   IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -37,10 +38,10 @@ import {
   useFulfilledWishes,
   useTransactions,
 } from '../api/queries';
-import { useCreateTransaction } from '../api/mutations';
+import { useCreateTransaction, useDeleteTransaction } from '../api/mutations';
 import { useApp, useOnlineStatus } from '../state/AppContext';
 import classes from './ChildrenPage.module.css';
-import type { Child, Transaction, Wish } from '../types';
+import type { Child, Transaction } from '../types';
 
 export function ChildrenPage() {
   const { state, dispatch } = useApp();
@@ -224,6 +225,7 @@ function TransactionList({ childId }: { childId: number }) {
 
 function TransactionRow({ tx }: { tx: Transaction }) {
   const positive = tx.amount >= 0;
+  const del = useDeleteTransaction();
   return (
     <Card padding="sm" radius="md" withBorder>
       <Group justify="space-between" wrap="nowrap">
@@ -247,6 +249,20 @@ function TransactionRow({ tx }: { tx: Transaction }) {
           {positive ? '+' : ''}
           {tx.amount}
         </Badge>
+        <ActionIcon
+          color="red"
+          variant="subtle"
+          size="sm"
+          loading={del.isPending}
+          aria-label="Smazat pohyb"
+          onClick={() => {
+            if (confirm('Smazat tento pohyb hvězd?')) {
+              del.mutate({ id: tx.id, childId: tx.childId });
+            }
+          }}
+        >
+          <IconTrash size={16} />
+        </ActionIcon>
       </Group>
     </Card>
   );
@@ -262,19 +278,17 @@ function FulfilledWishesList({ childId }: { childId: number }) {
     >
       {(wishes) => (
         <Stack gap="xs">
-          {wishes.map((w: Wish) => (
-            <Card key={w.id} padding="sm" radius="md" withBorder>
+          {wishes.map((tx) => (
+            <Card key={tx.id} padding="sm" radius="md" withBorder>
               <Group justify="space-between">
                 <Text fz="sm" fw={500}>
-                  {w.title}
+                  {tx.description}
                 </Text>
-                {w.starCost !== null && <StarBalance amount={w.starCost} size="sm" />}
+                <StarBalance amount={Math.abs(tx.amount)} size="sm" />
               </Group>
-              {w.fulfilledAt && (
-                <Text fz="xs" c="dimmed" mt={2}>
-                  {new Date(w.fulfilledAt).toLocaleDateString('cs-CZ')}
-                </Text>
-              )}
+              <Text fz="xs" c="dimmed" mt={2}>
+                {new Date(tx.createdAt).toLocaleDateString('cs-CZ')}
+              </Text>
             </Card>
           ))}
         </Stack>
@@ -298,13 +312,13 @@ function AddTransactionForm({
 
   const form = useForm<{
     childId: number | null;
-    categoryId: number | null;
+    activityId: number | null;
     amount: number;
     description: string;
   }>({
     initialValues: {
       childId: defaultChildId ?? children[0]?.id ?? null,
-      categoryId: null,
+      activityId: null,
       amount: 1,
       description: '',
     },
@@ -328,7 +342,7 @@ function AddTransactionForm({
     () =>
       (activityTypesQuery.data ?? []).map((a) => ({
         value: String(a.id),
-        label: `${a.name} (${a.defaultStars}⭐)`,
+        label: `${a.name} (${a.value}⭐)`,
       })),
     [activityTypesQuery.data],
   );
@@ -341,7 +355,6 @@ function AddTransactionForm({
             childId: values.childId!,
             amount: direction === 'add' ? values.amount : -values.amount,
             description: values.description.trim(),
-            categoryId: values.categoryId ?? undefined,
           },
           { onSuccess: () => onDone() },
         );
@@ -367,14 +380,15 @@ function AddTransactionForm({
         />
         <Select
           label="Aktivita (volitelné)"
-          placeholder="Vyber kategorii"
+          placeholder="Vyber aktivitu"
           data={activityOptions}
-          value={form.values.categoryId ? String(form.values.categoryId) : null}
+          value={form.values.activityId ? String(form.values.activityId) : null}
           onChange={(v) => {
-            form.setFieldValue('categoryId', v ? Number(v) : null);
+            form.setFieldValue('activityId', v ? Number(v) : null);
             const a = activityTypesQuery.data?.find((x) => String(x.id) === v);
             if (a) {
-              form.setFieldValue('amount', a.defaultStars);
+              form.setFieldValue('amount', Math.abs(a.value));
+              setDirection(a.direction === 'minus' ? 'remove' : 'add');
               if (!form.values.description) {
                 form.setFieldValue('description', a.name);
               }

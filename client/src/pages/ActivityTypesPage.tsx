@@ -4,6 +4,7 @@ import {
   Card,
   Group,
   NumberInput,
+  SegmentedControl,
   Stack,
   TextInput,
   Title,
@@ -27,8 +28,8 @@ export function ActivityTypesPage() {
   const create = useCreateActivityType();
   const [adding, setAdding] = useState(false);
 
-  const form = useForm({
-    initialValues: { name: '', defaultStars: 1 },
+  const form = useForm<{ name: string; value: number; direction: 'plus' | 'minus' }>({
+    initialValues: { name: '', value: 1, direction: 'plus' },
     validate: { name: (v) => (v.trim() ? null : 'Vyplň název') },
   });
 
@@ -53,7 +54,11 @@ export function ActivityTypesPage() {
             <form
               onSubmit={form.onSubmit((v) => {
                 create.mutate(
-                  { name: v.name.trim(), defaultStars: v.defaultStars },
+                  {
+                    name: v.name.trim(),
+                    value: v.value,
+                    direction: v.direction,
+                  },
                   {
                     onSuccess: () => {
                       form.reset();
@@ -70,9 +75,20 @@ export function ActivityTypesPage() {
                   {...form.getInputProps('name')}
                 />
                 <NumberInput
-                  label="Výchozí počet hvězd"
+                  label="Počet hvězd"
                   min={1}
-                  {...form.getInputProps('defaultStars')}
+                  {...form.getInputProps('value')}
+                />
+                <SegmentedControl
+                  fullWidth
+                  value={form.values.direction}
+                  onChange={(value) =>
+                    form.setFieldValue('direction', value as 'plus' | 'minus')
+                  }
+                  data={[
+                    { label: 'Přidat', value: 'plus' },
+                    { label: 'Odebrat', value: 'minus' },
+                  ]}
                 />
                 <Group grow>
                   <Button variant="default" onClick={() => setAdding(false)}>
@@ -114,13 +130,18 @@ export function ActivityTypesPage() {
 function ActivityRow({ item }: { item: ActivityType }) {
   const update = useUpdateActivityType();
   const del = useDeleteActivityType();
-  const form = useForm({
-    initialValues: { name: item.name, defaultStars: item.defaultStars },
+  const form = useForm<{ name: string; value: number; direction: 'plus' | 'minus' }>({
+    initialValues: {
+      name: item.name,
+      value: item.value,
+      direction: item.direction,
+    },
   });
 
   const dirty =
     form.values.name !== item.name ||
-    form.values.defaultStars !== item.defaultStars;
+    form.values.value !== item.value ||
+    form.values.direction !== item.direction;
 
   return (
     <Card padding="sm" withBorder radius="md">
@@ -133,8 +154,19 @@ function ActivityRow({ item }: { item: ActivityType }) {
         <NumberInput
           w={70}
           min={1}
-          {...form.getInputProps('defaultStars')}
+          {...form.getInputProps('value')}
           variant="filled"
+        />
+        <SegmentedControl
+          size="xs"
+          value={form.values.direction}
+          onChange={(value) =>
+            form.setFieldValue('direction', value as 'plus' | 'minus')
+          }
+          data={[
+            { label: '+', value: 'plus' },
+            { label: '-', value: 'minus' },
+          ]}
         />
         {dirty && (
           <Button
@@ -144,7 +176,8 @@ function ActivityRow({ item }: { item: ActivityType }) {
               update.mutate({
                 id: item.id,
                 name: form.values.name,
-                defaultStars: form.values.defaultStars,
+                value: form.values.value,
+                direction: form.values.direction,
               })
             }
           >

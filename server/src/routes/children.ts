@@ -44,7 +44,7 @@ export default async function childrenRoutes(fastify: FastifyInstance) {
     },
   });
 
-  // Delete unused invitation (parent only)
+  // Delete invitation (parent only)
   fastify.delete("/api/child-invitations/:id", {
     preHandler: [requireParent],
     handler: async (request, reply) => {
@@ -57,14 +57,13 @@ export default async function childrenRoutes(fastify: FastifyInstance) {
         .where(
           and(
             eq(childInvitations.id, parseInt(id)),
-            eq(childInvitations.familyId, user.familyId!),
-            isNull(childInvitations.usedBy)
+            eq(childInvitations.familyId, user.familyId!)
           )
         )
         .limit(1);
 
       if (!invitation) {
-        return reply.code(404).send({ error: "Invitation not found or already used" });
+        return reply.code(404).send({ error: "Invitation not found" });
       }
 
       await db.delete(childInvitations).where(eq(childInvitations.id, invitation.id));
@@ -94,25 +93,18 @@ export default async function childrenRoutes(fastify: FastifyInstance) {
       const [invitation] = await db
         .select()
         .from(childInvitations)
-        .where(
-          and(
-            eq(childInvitations.code, code.toUpperCase()),
-            isNull(childInvitations.usedBy)
-          )
-        )
+        .where(eq(childInvitations.code, code.toUpperCase()))
         .limit(1);
 
       if (!invitation) {
-        return reply.code(404).send({ error: "Invalid or already used invitation code" });
+        return reply.code(404).send({ error: "Invalid invitation code" });
       }
 
-      // Mark invitation as used
       await db
         .update(childInvitations)
-        .set({ usedBy: user.id, usedAt: new Date() })
+        .set({ usageCount: invitation.usageCount + 1 })
         .where(eq(childInvitations.id, invitation.id));
 
-      // Assign user to family as child
       await db
         .update(users)
         .set({ familyId: invitation.familyId, role: "child" })

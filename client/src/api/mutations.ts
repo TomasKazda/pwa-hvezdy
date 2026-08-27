@@ -149,7 +149,7 @@ export interface CreateTransactionVars {
   childId: number;
   amount: number;
   description: string;
-  categoryId?: number;
+  wishId?: number | null;
 }
 
 export function useCreateTransaction() {
@@ -170,12 +170,32 @@ export function useCreateTransaction() {
   });
 }
 
+export function useDeleteTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: number; childId: number }) =>
+      apiFetch(`/api/transactions/${id}`, { method: 'DELETE' }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.children });
+      qc.invalidateQueries({ queryKey: qk.transactions(vars.childId) });
+      qc.invalidateQueries({ queryKey: qk.wishes });
+      notifySuccess('Pohyb smazán');
+    },
+    onError: (err) => notifyError(err),
+  });
+}
+
 // ---------- Wishes ----------
 
 export interface CreateWishVars {
   title: string;
   starCost?: number;
   isPersistent?: boolean;
+  isSelfFulfillment?: boolean;
+  multiplier?: number;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  webhookParamName?: string;
 }
 
 export function useCreateWish() {
@@ -199,6 +219,11 @@ export interface UpdateWishVars {
   title?: string;
   starCost?: number;
   isPersistent?: boolean;
+  isSelfFulfillment?: boolean;
+  multiplier?: number;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  webhookParamName?: string;
 }
 
 export function useUpdateWish() {
@@ -247,12 +272,32 @@ export function useFulfillWish() {
   });
 }
 
+export function useSelfFulfillWish() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, starCost }: { id: number; starCost?: number }) =>
+      apiFetch<{ ok: boolean; balance: number; parameter: number }>(
+        `/api/wishes/${id}/self-fulfill`,
+        {
+          method: 'POST',
+          body: JSON.stringify(starCost !== undefined ? { starCost } : {}),
+        },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.wishes });
+      qc.invalidateQueries({ queryKey: qk.myTransactions });
+      notifySuccess('Hotovo! Odesláno do služby.');
+    },
+    onError: (err) => notifyError(err),
+  });
+}
+
 // ---------- Activity types ----------
 
 export function useCreateActivityType() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { name: string; defaultStars: number }) =>
+    mutationFn: (vars: { name: string; value: number; direction?: 'plus' | 'minus' }) =>
       apiFetch<{ activityType: ActivityType }>('/api/activity-types', {
         method: 'POST',
         body: JSON.stringify(vars),
@@ -267,7 +312,7 @@ export function useCreateActivityType() {
 export function useUpdateActivityType() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; name?: string; defaultStars?: number }) =>
+    mutationFn: ({ id, ...body }: { id: number; name?: string; value?: number; direction?: 'plus' | 'minus' }) =>
       apiFetch<{ activityType: ActivityType }>(`/api/activity-types/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
