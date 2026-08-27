@@ -26,7 +26,7 @@ CREATE TABLE "families" (
 	CONSTRAINT "families_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
-CREATE TABLE "sessions" (
+CREATE TABLE IF NOT EXISTS "sessions" (
 	"sid" varchar PRIMARY KEY NOT NULL,
 	"sess" json NOT NULL,
 	"expire" timestamp (6) NOT NULL
